@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>تجزئة ملف PDF</title>
+</head>
+<body style="direction: rtl; font-family: Arial; padding: 20px;">
+  <h2>تجزئة ملف PDF</h2>
+  
+  <input type="file" id="pdfFile" accept="application/pdf">
+  <br><br>
+  <label>أدخل رقم الصفحة التي تريد استخراجها (مثال: 3 أو 1-5):</label>
+  <input type="text" id="pageRange" placeholder="مثال: 2 أو 1-3">
+  <br><br>
+  <button onclick="splitPDF()">تجزئة</button>
+  <br><br>
+  <a id="downloadLink" style="display: none;">تحميل الملف المجزأ</a>
+
+  <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+  <script>
+    async function splitPDF() {
+      const fileInput = document.getElementById('pdfFile');
+      const pageRange = document.getElementById('pageRange').value;
+      const downloadLink = document.getElementById('downloadLink');
+
+      if (!fileInput.files.length || !pageRange) {
+        alert('يرجى اختيار ملف PDF وتحديد الصفحات.');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+      const totalPages = pdfDoc.getPageCount();
+
+      const newPdfDoc = await PDFLib.PDFDocument.create();
+
+      // دعم نطاق صفحات مثل 1-3 أو صفحة واحدة مثل 2
+      let pagesToExtract = [];
+      if (pageRange.includes('-')) {
+        const [start, end] = pageRange.split('-').map(Number);
+        for (let i = start - 1; i < end; i++) {
+          if (i >= 0 && i < totalPages) pagesToExtract.push(i);
+        }
+      } else {
+        const pageIndex = Number(pageRange) - 1;
+        if (pageIndex >= 0 && pageIndex < totalPages) {
+          pagesToExtract.push(pageIndex);
+        }
+      }
+
+      const copiedPages = await newPdfDoc.copyPages(pdfDoc, pagesToExtract);
+      copiedPages.forEach(p => newPdfDoc.addPage(p));
+
+      const pdfBytes = await newPdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+
+      downloadLink.href = url;
+      downloadLink.download = 'ملف-مجزأ.pdf';
+      downloadLink.style.display = 'inline';
+      downloadLink.textContent = 'تحميل الملف المجزأ';
+    }
+  </script>
+</body>
+</html>
